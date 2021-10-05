@@ -134,7 +134,7 @@ module.exports = function MC_EXTRA(registry) {
             exec(file, tokens) {
                 const { token } = tokens.shift();
                 const [type, name, replace] = token.split(/\s+/);
-                const tag = state.tags[name] = {
+                const tag = state.tags[mc.transpiler.evaluate_str(name)] = {
                     type: tagLoopup[type],
                     replace: replace === "replace",
                     values: new Set(),
