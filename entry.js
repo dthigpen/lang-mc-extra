@@ -205,6 +205,30 @@ module.exports = function MC_EXTRA(registry) {
 				)
 			})
 		)
+		EntryConsumer.addAction(
+			targetedJSONAction('dimension', name => {
+				const namespace = mc.getNamespace()
+				return path.resolve(
+					process.cwd(),
+					'data',
+					namespace.namespace,
+					'dimensions',
+					namespace.path + name + '.json'
+				)
+			})
+		)
+		EntryConsumer.addAction(
+			targetedJSONAction('worldgen', name => {
+				const namespace = mc.getNamespace()
+				return path.resolve(
+					process.cwd(),
+					'data',
+					namespace.namespace,
+					'worldgen',
+					namespace.path + name + '.json'
+				)
+			})
+		)
 		mc.on('start', e => {
 			state = {
 				tags: {},
