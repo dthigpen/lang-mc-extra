@@ -1,6 +1,4 @@
 {
-    "name": "lang-mc-extra",
-    "extensions": [
-        ".mce"
-    ]
+	"name": "lang-mc-extra",
+	"extensions": [".mce"]
 }

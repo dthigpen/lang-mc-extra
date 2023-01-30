@@ -1,4 +1,3 @@
-
 module.exports = {
-    integrated: true
-};
+	integrated: true,
+}
