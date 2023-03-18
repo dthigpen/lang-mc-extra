@@ -30,16 +30,7 @@ function targetedJSONAction(trigger, getPath) {
 			const name = token.substr(firstSpace, token.length)
 			const file = new File()
 			file.setPath(mc.transpiler.evaluate_str(getPath(name, _)))
-			mc.transpiler.validate_next_destructive(tokens, '{')
-			let count = 1
-			let content = ['{']
-			while (count && tokens.length) {
-				const item = tokens.shift().token
-				content.push(mc.transpiler.evaluate_str(item))
-				if (item === '{') count++
-				if (item === '}') count--
-			}
-			file.setContents(content.join(''))
+			file.setContents(parseJSONObjectToString(tokens))
 			file.confirm()
 		},
 	}
@@ -105,6 +96,20 @@ const tagConsumer = mc.transpiler.list({
 		tag.values.add(mc.transpiler.evaluate_str(token))
 	},
 })
+
+function parseJSONObjectToString(tokens) {
+	mc.transpiler.validate_next_destructive(tokens, '{')
+	let count = 1
+	let content = ['{']
+	while (count && tokens.length) {
+		const item = tokens.shift().token
+		content.push(mc.transpiler.evaluate_str(item))
+		if (item === '{') count++
+		if (item === '}') count--
+	}
+	return content.join('')
+}
+
 module.exports = function MC_EXTRA(registry) {
 	logger.info(`loading mc-extra in ${CONFIG.integrated ? 'integration' : 'file'} mode`)
 	if (CONFIG.integrated === true) {
@@ -130,19 +135,26 @@ module.exports = function MC_EXTRA(registry) {
 		EntryConsumer.addAction({
 			match: ({ token }) => /^(blocks|entities|fluids|functions|items)/.test(token),
 			exec(file, tokens) {
-				const { token } = tokens.shift()
-				const [type, name, replace] = token.split(/\s+/)
+				const { token, line } = tokens.shift()
+				const [type, name, action] = token.split(/\s+/)
 				const tag = (state.tags[mc.transpiler.evaluate_str(name)] = {
 					type: tagLoopup[type],
-					replace: replace === 'replace',
+					replace: action === 'replace',
 					values: new Set(),
 					namespace: mc.getNamespace(),
 				})
-				mc.transpiler.validate_next_destructive(tokens, '{')
-				while (tokens[0].token != '}') {
-					tagConsumer(file, tokens, tag)
+				if(action === undefined || action === 'replace') {
+					mc.transpiler.validate_next_destructive(tokens, '{')
+					while (tokens[0].token != '}') {
+						tagConsumer(file, tokens, tag)
+					}
+					tokens.shift()
+				} else if(action === 'raw') {
+					const content = JSON.parse(parseJSONObjectToString(tokens))
+					Object.assign(tag, content)
+				} else {
+					throw new CompilerError(`invalid tag action '${action}'`, line)
 				}
-				tokens.shift()
 			},
 		})
 		EntryConsumer.addAction(
@@ -268,8 +280,8 @@ module.exports = function MC_EXTRA(registry) {
 		EntryOp.addAction({
 			match: ({ token }) => /^(blocks|entities|fluids|functions|items)/.test(token),
 			exec(file, tokens) {
-				const { token } = tokens.shift()
-				const [type, name, replace] = token.split(/\s+/)
+				const { token, line } = tokens.shift()
+				const [type, name, action] = token.split(/\s+/)
 				const parts = path.win32
 					.normalize(path.relative(path.resolve(process.cwd(), 'src'), file.split('.')[0]))
 					.split('\\')
@@ -282,11 +294,18 @@ module.exports = function MC_EXTRA(registry) {
 						path: parts.slice(1).join('/') + (parts.length > 1 ? '/' : ''),
 					},
 				})
-				mc.transpiler.validate_next_destructive(tokens, '{')
-				while (tokens[0].token != '}') {
-					tagConsumer(file, tokens, tag)
+				if(action === undefined || action === 'replace') {
+					mc.transpiler.validate_next_destructive(tokens, '{')
+					while (tokens[0].token != '}') {
+						tagConsumer(file, tokens, tag)
+					}
+					tokens.shift()
+				} else if(action === 'raw') {
+					const content = JSON.parse(parseJSONObjectToString(tokens))
+					Object.assign(tag, content)
+				} else {
+					throw new CompilerError(`invalid tag action '${action}'`, line)
 				}
-				tokens.shift()
 			},
 		})
 		EntryOp.addAction(
